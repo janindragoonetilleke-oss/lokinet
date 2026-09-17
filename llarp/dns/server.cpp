@@ -343,45 +343,40 @@ namespace llarp::dns
 
                 // set async
                 ub_ctx_async(m_ctx, 1);
-                // setup mainloop
-#ifdef _WIN32
+                // setup worker thread to process unbound callbacks
                 running = true;
                 runner = std::thread{[this]() {
                     while (running)
                     {
-                        // poll and process callbacks it this thread
-                        if (ub_poll(m_ctx))
+#ifndef _WIN32
+                        struct pollfd pfd{};
+                        pfd.fd = ub_fd(m_ctx);
+                        pfd.events = POLLIN;
+                        ::poll(&pfd, 1, 10);
+#else
+                        std::this_thread::sleep_for(10ms);
+#endif
+                        if (!running)
+                            break;
+
+                        std::lock_guard lock{_ub_mutex};
+                        if (m_ctx && ub_poll(m_ctx))
                         {
                             ub_process(m_ctx);
                         }
-                        else  // nothing to do, sleep.
-                            std::this_thread::sleep_for(10ms);
                     }
                 }};
-#else
-                // TODO: replace uvw shim shit with new libev stuff
-                // if (auto loop_ptr = loop->MaybeGetUVWLoop())
-                // {
-                //     _poller = loop_ptr->resource<uvw::PollHandle>(ub_fd(m_ctx));
-                //     _poller->on<uvw::PollEvent>([this](auto&, auto&) { ub_process(m_ctx); });
-                //     _poller->start(uvw::PollHandle::Event::READABLE);
-                //     return;
-                // }
-#endif
             }
 
             void down() override
             {
-#ifdef _WIN32
                 if (running.exchange(false))
                 {
-                    log::debug(logcat, "shutting down win32 dns thread");
-                    runner.join();
+                    log::debug(logcat, "shutting down dns poller thread");
+                    if (runner.joinable())
+                        runner.join();
                 }
-#else
-                // if (_poller)
-                //     _poller->close();
-#endif
+                std::lock_guard lock{_ub_mutex};
                 if (m_ctx)
                 {
                     ::ub_ctx_delete(m_ctx);
@@ -463,10 +458,8 @@ namespace llarp::dns
                     return true;
                 }
 
-#ifdef _WIN32
                 if (not running)
                 {
-                    // we are stopping the win32 thread
                     log::debug(
                         logcat,
                         "dns from {} to {} got to the unbound resolver, but the resolver isn't "
@@ -474,13 +467,17 @@ namespace llarp::dns
                         "sending failure reply",
                         from,
                         to);
-                    tmp->Cancel();
+                    tmp->cancel();
                     return true;
                 }
-#endif
                 const auto& q = query.questions[0];
-                if (auto err = ub_resolve_async(
-                        m_ctx, q.Name().c_str(), q.qtype, q.qclass, tmp.get(), &Resolver::callback, nullptr))
+                int err;
+                {
+                    std::lock_guard lock{_ub_mutex};
+                    err = ub_resolve_async(
+                        m_ctx, q.Name().c_str(), q.qtype, q.qclass, tmp.get(), &Resolver::callback, nullptr);
+                }
+                if (err)
                 {
                     log::warning(logcat, "failed to send upstream query with libunbound: {}", ub_strerror(err));
                     tmp->cancel();
