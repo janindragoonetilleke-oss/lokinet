@@ -67,7 +67,8 @@ if networksetup -listallnetworkservices 2>/dev/null | grep -q "AX88179A"; then
   echo "AX88179A Ethernet DNS reverted to DHCP."
 fi
 
-# 3. Flush DNS cache
+# 3. Clean up /etc/resolver/loki and flush DNS cache
+rm -f /etc/resolver/loki
 echo "🧹 Flushing DNS cache..."
 dscacheutil -flushcache
 killall -HUP mDNSResponder 2>/dev/null || true

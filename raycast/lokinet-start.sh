@@ -114,6 +114,13 @@ if networksetup -listallnetworkservices 2>/dev/null | grep -q "AX88179A"; then
   networksetup -setdnsservers AX88179A 127.0.0.1 2>/dev/null || true
 fi
 
+# Configure dedicated .loki domain resolver for macOS system browsers (Comet, Safari, Chrome)
+mkdir -p /etc/resolver
+cat <<EOF > /etc/resolver/loki
+nameserver 127.0.0.1
+port 53
+EOF
+
 # Flush DNS cache
 dscacheutil -flushcache
 killall -HUP mDNSResponder 2>/dev/null || true
