@@ -53,30 +53,58 @@ fi
 
 # 2. Start lokinet-daemon if not already running
 EXISTING_PID=$(pgrep -f "$LOKINET_BIN" | head -n 1 || true)
-if [ -n "$EXISTING_PID" ]; then
-  echo "ℹ️  Lokinet daemon is already running (PID: $EXISTING_PID)"
+if [ -n "$EXISTING_PID" ] && dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
+  echo "ℹ️  Lokinet daemon is already running (PID: $EXISTING_PID) and answering on port 53"
+  echo "$EXISTING_PID" > "$PID_FILE"
 else
+  if [ -n "$EXISTING_PID" ]; then
+    echo "⚠️  Stale Lokinet daemon found (PID: $EXISTING_PID) but port 53 inactive. Restarting..."
+    kill -9 "$EXISTING_PID" 2>/dev/null || true
+    sleep 0.5
+  fi
+
   echo "🚀 Launching Lokinet daemon..."
   mkdir -p "$(dirname "$LOG_FILE")"
-  nohup "$LOKINET_BIN" "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
-  LOKI_PID=$!
-  echo "$LOKI_PID" > "$PID_FILE"
   
-  # Wait for Lokinet to bind port 53 (up to 5 seconds)
+  # Standard clean detachment without BSD nohup (which fails under AppleScript console detachment)
+  "$LOKINET_BIN" "$CONFIG_FILE" </dev/null >> "$LOG_FILE" 2>&1 &
+  LOKI_PID=$!
+  
+  # Wait and verify that Lokinet is alive and answering on port 53 (up to 6 seconds)
   READY=0
-  for i in {1..10}; do
-    if nc -z -u -w 1 127.0.0.1 53 2>/dev/null; then
+  for i in {1..12}; do
+    if ! kill -0 "$LOKI_PID" 2>/dev/null; then
+      echo "❌ Lokinet daemon process exited unexpectedly shortly after launch!"
+      break
+    fi
+    if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
       READY=1
       break
     fi
     sleep 0.5
   done
 
-  if [ "$READY" -eq 1 ]; then
-    echo "✅ Lokinet daemon running (PID: $LOKI_PID) listening on 127.0.0.1:53"
-  else
-    echo "⚠️  Lokinet started (PID: $LOKI_PID); port 53 initializing (check log at $LOG_FILE)"
+  if [ "$READY" -ne 1 ]; then
+    echo "❌ Lokinet failed to become ready on 127.0.0.1:53"
+    echo ""
+    echo "--- 📜 Daemon Log Tail ($LOG_FILE) ---"
+    tail -n 15 "$LOG_FILE" 2>/dev/null || true
+    echo "---------------------------------------"
+    rm -f "$PID_FILE"
+    
+    # SAFETY ROLLBACK: Ensure Wi-Fi DNS is restored to default DHCP if it pointed to 127.0.0.1
+    CURRENT_DNS=$(networksetup -getdnsservers Wi-Fi 2>/dev/null || echo "")
+    if [ "$CURRENT_DNS" = "127.0.0.1" ]; then
+      echo "🔄 Restoring Wi-Fi DNS to default DHCP to prevent broken resolution..."
+      networksetup -setdnsservers Wi-Fi empty
+      dscacheutil -flushcache
+      killall -HUP mDNSResponder 2>/dev/null || true
+    fi
+    exit 1
   fi
+
+  echo "$LOKI_PID" > "$PID_FILE"
+  echo "✅ Lokinet daemon running (PID: $LOKI_PID) listening on 127.0.0.1:53"
 fi
 
 # 3. Bind macOS System DNS Exclusively to Lokinet
@@ -92,13 +120,13 @@ killall -HUP mDNSResponder 2>/dev/null || true
 
 echo ""
 echo "=== 📋 Verification ==="
-echo "Active Nameserver: $(grep nameserver /etc/resolv.conf | head -n 1)"
-echo "Wi-Fi DNS: $(networksetup -getdnsservers Wi-Fi)"
+echo "Active Nameserver: $(grep nameserver /etc/resolv.conf 2>/dev/null | head -n 1 || echo 'none')"
+echo "Wi-Fi DNS: $(networksetup -getdnsservers Wi-Fi 2>/dev/null)"
 
 # Quick DNS test
 TEST_RES=$(dig @127.0.0.1 +short +time=2 test.nextdns.io 2>/dev/null || true)
 if [ -n "$TEST_RES" ]; then
-  echo "DNS Test (test.nextdns.io): Resolved ($TEST_RES) via NextDNS"
+  echo "DNS Test (test.nextdns.io): Resolved ($TEST_RES) via Lokinet -> NextDNS"
 else
   echo "DNS Test: Resolving via Lokinet..."
 fi

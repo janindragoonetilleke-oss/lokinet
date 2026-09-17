@@ -34,10 +34,12 @@ fi
 
 # 2. Check Port 53 Binding
 echo ""
-if nc -z -u -w 1 127.0.0.1 53 2>/dev/null; then
-  echo "2. Port 53 Listener: 🟢 ACTIVE on 127.0.0.1:53"
+if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
+  echo "2. Port 53 Listener: 🟢 ACTIVE on 127.0.0.1:53 (DNS responding)"
+elif [ -n "$LOKI_PID" ]; then
+  echo "2. Port 53 Listener: 🟡 Daemon alive, but port 53 not yet answering"
 else
-  echo "2. Port 53 Listener: ⚪ INACTIVE on 127.0.0.1:53"
+  echo "2. Port 53 Listener: ⚪ INACTIVE (Nothing listening on 127.0.0.1:53)"
 fi
 
 # 3. Check NextDNS DoH Upstream (Port 5354)
