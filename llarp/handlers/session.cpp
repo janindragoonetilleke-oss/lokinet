@@ -753,8 +753,9 @@ namespace llarp::handlers
             remote.to_network_address(false));
 
         auto remaining = std::make_shared<int>(0);
+        auto cb = std::make_shared<std::function<void(std::optional<ClientContact>)>>(std::move(func));
 
-        auto response_handler = [remote, func = std::move(func), remaining](auto resp) {
+        auto response_handler = [remote, cb, remaining](auto resp) {
             int rem = --*remaining;
             if (rem < 0)
             {
@@ -799,12 +800,12 @@ namespace llarp::handlers
             if (cc)
             {
                 *remaining = 0;
-                func(std::move(cc));
+                (*cb)(std::move(cc));
             }
             else if (rem == 0)
             {
                 // Last chance and all failed, so trigger failure
-                func(std::nullopt);
+                (*cb)(std::nullopt);
             }
         };
 
@@ -828,7 +829,7 @@ namespace llarp::handlers
         if (*remaining == 0)
         {
             log::warning(logcat, "CC lookup failed: no usable paths!");
-            func(std::nullopt);
+            (*cb)(std::nullopt);
         }
     }
 
