@@ -35,7 +35,7 @@ fi
 # 2. Check Port 53 Binding
 echo ""
 PORT53_INFO=$(lsof -nP -iUDP:53 2>/dev/null || true)
-if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
+if dig @127.0.0.1 -p 53 +time=1 +tries=1 localhost >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1; then
   echo "2. Port 53 Listener: 🟢 ACTIVE on 127.0.0.1:53 (DNS answering queries)"
   if [ -n "$PORT53_INFO" ]; then
     LSOF_LINE=$(echo "$PORT53_INFO" | awk 'NR>1 {print $1 "[PID:" $2 "]"}' | head -n 1)

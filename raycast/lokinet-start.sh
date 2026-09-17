@@ -53,7 +53,7 @@ fi
 
 # 2. Start lokinet-daemon if not already running
 EXISTING_PID=$(pgrep -f "$LOKINET_BIN" | head -n 1 || true)
-if [ -n "$EXISTING_PID" ] && dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
+if [ -n "$EXISTING_PID" ] && (dig @127.0.0.1 -p 53 +time=1 +tries=1 localhost >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1); then
   echo "ℹ️  Lokinet daemon is already running (PID: $EXISTING_PID) and answering on port 53"
   echo "$EXISTING_PID" > "$PID_FILE"
 else
