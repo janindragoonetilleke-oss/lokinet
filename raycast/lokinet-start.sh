@@ -67,17 +67,17 @@ else
   mkdir -p "$(dirname "$LOG_FILE")"
   
   # Standard clean detachment without BSD nohup (which fails under AppleScript console detachment)
-  "$LOKINET_BIN" "$CONFIG_FILE" </dev/null >> "$LOG_FILE" 2>&1 &
+  "$LOKINET_BIN" "$CONFIG_FILE" </dev/null > "$LOG_FILE" 2>&1 &
   LOKI_PID=$!
   
-  # Wait and verify that Lokinet is alive and answering on port 53 (up to 6 seconds)
+  # Wait and verify that Lokinet is alive and answering on port 53 (up to 10 seconds)
   READY=0
-  for i in {1..12}; do
+  for i in {1..20}; do
     if ! kill -0 "$LOKI_PID" 2>/dev/null; then
       echo "❌ Lokinet daemon process exited unexpectedly shortly after launch!"
       break
     fi
-    if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
+    if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1; then
       READY=1
       break
     fi
