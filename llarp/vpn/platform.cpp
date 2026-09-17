@@ -11,6 +11,9 @@
 #include "linux.hpp"
 #endif
 #endif
+#ifdef __APPLE__
+#include "darwin.hpp"
+#endif
 
 namespace llarp::vpn
 {
@@ -31,7 +34,7 @@ namespace llarp::vpn
 #endif
 #endif
 #ifdef __APPLE__
-        throw std::runtime_error{"not supported"};
+        plat = std::make_shared<vpn::DarwinPlatform>();
 #endif
         return plat;
     }
