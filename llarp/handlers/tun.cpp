@@ -603,6 +603,16 @@ namespace llarp::handlers
         */
         /*else*/ if (msg.questions[0].qtype == dns::qTypeA || msg.questions[0].qtype == dns::qTypeAAAA)
         {
+            const bool isV6 = msg.questions[0].qtype == dns::qTypeAAAA;
+            if (isV6)
+            {
+                // We do not provide IPv6 addresses for .loki; reply with standard NOERROR/NODATA (0 answers)
+                // so dual-stack resolvers (such as macOS getaddrinfo) fall back cleanly to the IPv4 A record
+                msg.add_nodata_reply();
+                reply(msg);
+                return true;
+            }
+
             auto reply_with_mapped_address = [reply, msg](const std::optional<ipv4>& maybe_ip) mutable {
                 if (maybe_ip)
                 {
@@ -613,11 +623,6 @@ namespace llarp::handlers
                 msg.add_nx_reply();
                 reply(msg);
             };
-
-            const bool isV6 = msg.questions[0].qtype == dns::qTypeAAAA;
-            const bool isV4 = msg.questions[0].qtype == dns::qTypeA;
-            (void)isV6;
-            (void)isV4;
             /*
             if (isV6 && !ipv6_enabled)
             {  // empty reply but not a NXDOMAIN so that client can retry IPv4

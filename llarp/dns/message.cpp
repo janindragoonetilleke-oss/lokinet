@@ -164,6 +164,12 @@ namespace llarp::dns
 
     static constexpr uint16_t reply_flags(uint16_t setbits) { return setbits | flags_QR | flags_AA | flags_RA; }
 
+    void Message::add_nodata_reply()
+    {
+        if (questions.size())
+            hdr_fields = reply_flags(hdr_fields);
+    }
+
     void Message::add_IN_reply(uint32_t addr, RR_TTL_t ttl)
     {
         // TODO: IPv6 support
