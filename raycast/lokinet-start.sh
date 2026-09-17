@@ -74,7 +74,7 @@ fi
       echo "❌ Lokinet daemon process exited unexpectedly shortly after launch!"
       break
     fi
-    if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1; then
+    if dig @127.0.0.1 -p 53 +time=1 +tries=1 localhost >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1; then
       READY=1
       break
     fi
@@ -102,7 +102,6 @@ fi
 
   echo "$LOKI_PID" > "$PID_FILE"
   echo "✅ Lokinet daemon running (PID: $LOKI_PID) listening on 127.0.0.1:53"
-fi
 
 # 3. Bind macOS System DNS Exclusively to Lokinet
 echo "🔒 Binding System DNS exclusively to Lokinet (127.0.0.1)..."
