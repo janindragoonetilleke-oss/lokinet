@@ -578,7 +578,8 @@ namespace llarp::handlers
         log::debug(logcat, "Looking up SNS name {}", sns);
 
         auto remaining = std::make_shared<int>(0);
-        auto response_handler = [sns, remaining, func = std::move(func)](auto resp) {
+        auto cb = std::make_shared<std::function<void(std::optional<NetworkAddress>)>>(std::move(func));
+        auto response_handler = [sns, remaining, cb](auto resp) {
             int rem = --*remaining;
             if (rem < 0)
                 return;  // Some other request beat us to it
@@ -611,13 +612,13 @@ namespace llarp::handlers
             if (client_addr)
             {
                 *remaining = 0;
-                func(std::move(client_addr));
+                (*cb)(std::move(client_addr));
             }
             else if (rem == 0)
             {
                 // If this is the last outstanding response, and still didn't succeed, then signal
                 // the lookup failure to the callback:
-                func(std::nullopt);
+                (*cb)(std::nullopt);
             }
         };
 
@@ -635,7 +636,7 @@ namespace llarp::handlers
         if (*remaining == 0)
         {
             log::warning(logcat, "Unable to resolve Lokinet SNS {}: we have no active paths", sns);
-            func(std::nullopt);
+            (*cb)(std::nullopt);
         }
     }
 
@@ -650,8 +651,9 @@ namespace llarp::handlers
         log::debug(logcat, "Looking up RelayContact for remote (rid:{})", remote.to_network_address(true));
 
         auto remaining = std::make_shared<int>(0);
+        auto cb = std::make_shared<std::function<void(std::optional<RelayContact>)>>(std::move(func));
 
-        auto response_handler = [this, remote, func = std::move(func), remaining](auto resp) {
+        auto response_handler = [this, remote, cb, remaining](auto resp) {
             int rem = --*remaining;
             if (rem < 0)
             {  // Some other path handler already replied
@@ -698,12 +700,12 @@ namespace llarp::handlers
             if (rc)
             {
                 *remaining = 0;
-                func(std::move(rc));
+                (*cb)(std::move(rc));
             }
             else if (rem == 0)
             {
                 // We are the last path response and there have been no successes, so signal failure
-                func(std::nullopt);
+                (*cb)(std::nullopt);
             }
         };
 
@@ -727,7 +729,7 @@ namespace llarp::handlers
         if (*remaining == 0)
         {
             log::warning(logcat, "RC lookup failed: no usable paths!");
-            func(std::nullopt);
+            (*cb)(std::nullopt);
         }
     }
 
