@@ -13,24 +13,30 @@ namespace llarp::apple
     {
         if (trampoline_active == enable)
             return;
-        auto router = context.router;
+        auto* router = context.router.get();
         if (!router)
         {
             log::error(logcat, "Cannot reconfigure to use DNS trampoline: no router");
             return;
         }
 
-        auto& tun = router->tun_endpoint();
-        if (!tun)
+        auto& tun_base = router->tun_endpoint();
+        if (!tun_base)
         {
             log::error(logcat, "Cannot reconfigure to use DNS trampoline: no tun endpoint found (!?)");
             return;
         }
+        auto* tun = dynamic_cast<handlers::TunEndpoint*>(tun_base.get());
+        if (!tun)
+        {
+            log::error(logcat, "Cannot reconfigure to use DNS trampoline: tun endpoint is not a TunEndpoint");
+            return;
+        }
 
         if (enable)
-            tun.reconfigure_dns({oxen::quic::Address{"127.0.0.1", dns_trampoline_port}});
+            tun->reconfigure_dns({oxen::quic::Address{"127.0.0.1", dns_trampoline_port}});
         else
-            tun->reconfigure_dns(router->config()->dns._upstream_dns);
+            tun->reconfigure_dns(router->config().dns._upstream_dns);
 
         trampoline_active = enable;
     }
@@ -55,8 +61,11 @@ namespace llarp::apple
         if (callback_context)
         {
             if (route_callbacks.add_ipv4_route)
+            {
+                auto mask_str = oxen::quic::ipv4{range.mask ? ~uint32_t(0) << (32 - range.mask) : 0}.to_string();
                 route_callbacks.add_ipv4_route(
-                    range.BaseAddressString().c_str(), std::string{range.mask}.c_str(), callback_context);
+                    range.ip.to_string().c_str(), mask_str.c_str(), callback_context);
+            }
         }
     }
 
@@ -66,7 +75,7 @@ namespace llarp::apple
         if (callback_context)
         {
             if (route_callbacks.add_ipv6_route)
-                route_callbacks.add_ipv6_route(range.BaseAddressString().c_str(), range.mask, callback_context);
+                route_callbacks.add_ipv6_route(range.ip.to_string().c_str(), range.mask, callback_context);
         }
     }
 
@@ -76,8 +85,11 @@ namespace llarp::apple
         if (callback_context)
         {
             if (route_callbacks.del_ipv4_route)
+            {
+                auto mask_str = oxen::quic::ipv4{range.mask ? ~uint32_t(0) << (32 - range.mask) : 0}.to_string();
                 route_callbacks.del_ipv4_route(
-                    range.ip.to_string().c_str(), std::string{range.mask}.c_str(), callback_context);
+                    range.ip.to_string().c_str(), mask_str.c_str(), callback_context);
+            }
         }
     }
 

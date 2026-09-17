@@ -14,15 +14,16 @@ namespace llarp::apple
           _on_readable{std::move(on_readable)},
           _router{router}
     {
-        ctx._loop->call_soon([this] { _on_readable(*this); });
+        _router->loop.call_soon([this] { _on_readable(*this); });
     }
 
     bool VPNInterface::OfferReadPacket(const llarp_buffer_t& buf)
     {
-        IPPacket pkt;
-        if (!pkt.load(buf.copy()))
+        auto pkt = IPPacket::try_making(
+            std::span<const std::byte>{reinterpret_cast<const std::byte*>(buf.base), buf.sz});
+        if (!pkt)
             return false;
-        _read_que.tryPushBack(std::move(pkt));
+        _read_que.tryPushBack(std::move(*pkt));
         return true;
     }
 

@@ -17,6 +17,7 @@ if (LOKINET_DAEMON)
 
   find_library(NETEXT NetworkExtension REQUIRED)
   find_library(COREFOUNDATION CoreFoundation REQUIRED)
+  find_library(LIBUV uv REQUIRED)
 
   add_executable(lokinet-extension MACOSX_BUNDLE
     PacketTunnelProvider.m
@@ -46,7 +47,8 @@ if (LOKINET_DAEMON)
   target_link_libraries(lokinet-extension PRIVATE
     lokinet-core
     ${COREFOUNDATION}
-    ${NETEXT})
+    ${NETEXT}
+    ${LIBUV})
 
   set_target_properties(lokinet-extension PROPERTIES
     BUNDLE TRUE

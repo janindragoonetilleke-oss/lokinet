@@ -920,6 +920,10 @@ namespace llarp
 
                 addr = quic::Address{host, p};
             }
+            else if (not arg.empty())
+            {
+                addr = quic::Address{arg, p};
+            }
 
             return addr;
         };

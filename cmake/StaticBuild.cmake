@@ -185,8 +185,8 @@ set(build_def_DEPENDS "")
 set(build_def_PATCH_COMMAND "")
 set(build_def_CONFIGURE_COMMAND ./configure ${cross_host} --disable-shared --prefix=${DEPS_DESTDIR} --with-pic
     "CC=${deps_cc}" "CXX=${deps_cxx}" "CFLAGS=${deps_CFLAGS}" "CXXFLAGS=${deps_CXXFLAGS}" ${cross_rc})
-set(build_def_BUILD_COMMAND ${_make})
-set(build_def_INSTALL_COMMAND ${_make} install)
+set(build_def_BUILD_COMMAND ${_make} install)
+set(build_def_INSTALL_COMMAND "")
 set(build_def_BUILD_BYPRODUCTS ${DEPS_DESTDIR}/lib/lib___TARGET___.a ${DEPS_DESTDIR}/include/___TARGET___.h)
 
 function(build_external target)
@@ -201,8 +201,10 @@ function(build_external target)
 
   if(arg_CONFIGURE_COMMAND MATCHES "^DEFAULT_CMAKE")
       string(REGEX REPLACE "^DEFAULT_CMAKE(;?)" "CMAKE_ARGS;-DCMAKE_INSTALL_PREFIX=${DEPS_DESTDIR}\\1" configure "${arg_CONFIGURE_COMMAND}")
+      set(build_cmd BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --target install)
   else()
     set(configure CONFIGURE_COMMAND ${arg_CONFIGURE_COMMAND})
+    set(build_cmd BUILD_COMMAND ${arg_BUILD_COMMAND})
   endif()
 
   string(TOUPPER "${target}" prefix)
@@ -216,7 +218,7 @@ function(build_external target)
     DOWNLOAD_NO_PROGRESS ON
     PATCH_COMMAND ${arg_PATCH_COMMAND}
     ${configure}
-    BUILD_COMMAND ${arg_BUILD_COMMAND}
+    ${build_cmd}
     INSTALL_COMMAND ${arg_INSTALL_COMMAND}
     BUILD_BYPRODUCTS ${arg_BUILD_BYPRODUCTS}
   )
