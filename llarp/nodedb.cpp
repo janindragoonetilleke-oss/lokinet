@@ -611,7 +611,14 @@ namespace llarp
             {
                 if (n == _router.netid())
                 {
-                    load_bootstrap(rc_blob, "Fallback bootstrap data");
+                    try
+                    {
+                        load_bootstrap(rc_blob, "Fallback bootstrap data");
+                    }
+                    catch (const std::exception& e)
+                    {
+                        log::warning(logcat, "Failed loading fallback bootstrap data for {}: {}. Skipping.", n, e.what());
+                    }
                     break;
                 }
             }

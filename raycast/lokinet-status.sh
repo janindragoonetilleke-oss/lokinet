@@ -66,6 +66,9 @@ if [ -n "$LOKI_PID" ] && echo "$WIFI_DNS" | grep -q "127.0.0.1"; then
   echo "   • Internet domains route securely via NextDNS"
 elif [ -n "$LOKI_PID" ]; then
   echo "🟡 Lokinet is RUNNING, but System DNS is NOT bound to 127.0.0.1 (run 'Start Lokinet' to bind)."
+elif echo "$WIFI_DNS" | grep -q "127.0.0.1"; then
+  echo "🔴 CRITICAL: System DNS is pointing to 127.0.0.1, but Lokinet daemon is NOT running!"
+  echo "   Your DNS is currently broken. Run 'Stop Lokinet' to revert back to default DHCP."
 else
-  echo "⚪ Lokinet is INACTIVE. System is using Default DHCP (NextDNS on router)."
+  echo "⚪ Lokinet is INACTIVE. System is using Default DHCP."
 fi
