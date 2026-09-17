@@ -11,10 +11,17 @@
 #include <oxen/quic/udp.hpp>
 #include <unbound.h>
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
+#include <thread>
 #include <utility>
+
+#ifndef _WIN32
+#include <poll.h>
+#endif
 
 namespace llarp::dns
 {
@@ -118,13 +125,9 @@ namespace llarp::dns
         {
             ub_ctx* m_ctx = nullptr;
             quic::Loop& _loop;
-#ifdef _WIN32
-            // windows is dumb so we do ub mainloop in a thread
             std::thread runner;
-            std::atomic<bool> running;
-#else
-            // std::shared_ptr<uvw::PollHandle> _poller;
-#endif
+            std::atomic<bool> running{false};
+            std::mutex _ub_mutex;
 
             std::optional<quic::Address> _local_addr;
             std::unordered_set<std::shared_ptr<Query>> _pending;
