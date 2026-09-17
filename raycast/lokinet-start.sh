@@ -51,17 +51,14 @@ else
   echo "ℹ️  NextDNS DoH on 5354 starting or fallback Anycast will be used"
 fi
 
-# 2. Start lokinet-daemon if not already running
+# 2. Start lokinet-daemon (restarting any existing instance)
 EXISTING_PID=$(pgrep -f "$LOKINET_BIN" | head -n 1 || true)
-if [ -n "$EXISTING_PID" ] && (dig @127.0.0.1 -p 53 +time=1 +tries=1 localhost >/dev/null 2>&1 || dig @127.0.0.1 -p 53 +time=1 +tries=1 test.nextdns.io >/dev/null 2>&1); then
-  echo "ℹ️  Lokinet daemon is already running (PID: $EXISTING_PID) and answering on port 53"
-  echo "$EXISTING_PID" > "$PID_FILE"
-else
-  if [ -n "$EXISTING_PID" ]; then
-    echo "⚠️  Stale Lokinet daemon found (PID: $EXISTING_PID) but port 53 inactive. Restarting..."
-    kill -9 "$EXISTING_PID" 2>/dev/null || true
-    sleep 0.5
-  fi
+if [ -n "$EXISTING_PID" ]; then
+  echo "🔄 Stopping existing Lokinet daemon (PID: $EXISTING_PID)..."
+  kill -TERM "$EXISTING_PID" 2>/dev/null || true
+  sleep 0.5
+  kill -9 "$EXISTING_PID" 2>/dev/null || true
+fi
 
   echo "🚀 Launching Lokinet daemon..."
   mkdir -p "$(dirname "$LOG_FILE")"
