@@ -34,10 +34,17 @@ fi
 
 # 2. Check Port 53 Binding
 echo ""
+PORT53_INFO=$(lsof -nP -iUDP:53 2>/dev/null || true)
 if dig @127.0.0.1 -p 53 +time=1 +tries=1 . >/dev/null 2>&1; then
-  echo "2. Port 53 Listener: 🟢 ACTIVE on 127.0.0.1:53 (DNS responding)"
+  echo "2. Port 53 Listener: 🟢 ACTIVE on 127.0.0.1:53 (DNS answering queries)"
+  if [ -n "$PORT53_INFO" ]; then
+    LSOF_LINE=$(echo "$PORT53_INFO" | awk 'NR>1 {print $1 "[PID:" $2 "]"}' | head -n 1)
+    [ -n "$LSOF_LINE" ] && echo "   Socket Owner:     $LSOF_LINE"
+  fi
+elif [ -n "$PORT53_INFO" ]; then
+  echo "2. Port 53 Listener: 🟡 Process bound to port 53, but not answering DNS queries"
 elif [ -n "$LOKI_PID" ]; then
-  echo "2. Port 53 Listener: 🟡 Daemon alive, but port 53 not yet answering"
+  echo "2. Port 53 Listener: 🟡 Lokinet daemon running, but port 53 not yet answering"
 else
   echo "2. Port 53 Listener: ⚪ INACTIVE (Nothing listening on 127.0.0.1:53)"
 fi
